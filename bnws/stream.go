@@ -142,6 +142,9 @@ func (s *WsStream) Stop() {
 }
 
 func (s *WsStream) Subscribe(streams []string) error {
+	if err := s.Run(); err != nil {
+		return err
+	}
 	var subscribes []string
 	for _, stream := range streams {
 		i := slices.Index(s.streams, stream)
