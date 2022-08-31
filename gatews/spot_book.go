@@ -14,38 +14,6 @@ type WsStreamData struct {
 	Data   any
 }
 
-// //最优挂单
-// type WsBookTick struct {
-// 	Symbol    string
-// 	LocalTime time.Time
-
-// 	//server order book update time in milliseconds
-// 	ServerTime time.Time
-
-// 	//these four strings can't assign to other string.
-// 	//they only alive during the callback.
-// 	//call CopyString if need save a copy
-// 	BidPrice    string
-// 	BidQuantity string
-// 	AskPrice    string
-// 	AskQuantity string
-// }
-
-// func (t *WsBookTick) CopyString() (bp string, bq string, ap string, aq string) {
-// 	bp = strClone(t.BidPrice)
-// 	bq = strClone(t.BidQuantity)
-// 	ap = strClone(t.AskPrice)
-// 	aq = strClone(t.AskQuantity)
-// 	return
-// }
-
-// func (t *WsBookTick) CopyOut(bp, bq, ap, aq *string) {
-// 	strCpy(bp, t.BidPrice)
-// 	strCpy(bq, t.BidQuantity)
-// 	strCpy(ap, t.AskPrice)
-// 	strCpy(aq, t.AskQuantity)
-// }
-
 func unsafeString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }

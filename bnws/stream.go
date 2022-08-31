@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -19,6 +20,7 @@ const (
 
 	BINANCE_FUTURE_ENDPOINT      = "wss://fstream.binance.com/stream"
 	BINANCE_FUTURE_ENDPOINT_TEST = "wss://stream.binancefuture.com/stream"
+	MaxRetryConn                 = 10
 )
 
 const (
@@ -68,16 +70,14 @@ func NewWsStream(endPoint string, handler func(msg []byte)) *WsStream {
 }
 
 func (s *WsStream) handleError(err error) {
-	if s.reconnect {
-		// s.cancelFunc()
-		for s.reconnect {
-			err := s.dial()
-			if err != nil {
-				time.Sleep(3 * time.Second)
-				continue
-			}
-			break
+	log.Printf("websocket error: %v\n", err)
+	for s.reconnect {
+		err := s.dial()
+		if err != nil {
+			log.Printf("websocket dial: %v\n", err)
+			continue
 		}
+		break
 	}
 }
 
@@ -87,9 +87,16 @@ func (s *WsStream) dial() error {
 	if len(s.streams) > 0 {
 		url = url + "?streams=" + strings.Join(s.streams, "/")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	s.c, _, err = websocket.Dial(ctx, url, nil)
+	for i := 0; i < MaxRetryConn; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		s.c, _, err = websocket.Dial(ctx, url, nil)
+		if err != nil {
+			time.Sleep(time.Duration(i+1) * time.Second)
+			continue
+		}
+		break
+	}
 	if err != nil {
 		return err
 	}
@@ -177,8 +184,8 @@ func (s *WsStream) Subscribe(streams []string) error {
 func (s *WsStream) Unsubscribe(streams []string) error {
 	var unsubscribes []string
 	var remain []string
-	for _, stream := range streams {
-		if slices.Index(s.streams, stream) >= 0 {
+	for _, stream := range s.streams {
+		if slices.Index(streams, stream) >= 0 {
 			unsubscribes = append(unsubscribes, stream)
 		} else {
 			remain = append(remain, stream)
