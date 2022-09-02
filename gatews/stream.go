@@ -48,18 +48,14 @@ func GetFutureWebsocketEndpoint() string {
 
 type WsStream struct {
 	sync.Mutex
-	endPoint  string
-	channel   string
-	streams   []string
-	reconnect bool
-	// cancelFunc  context.CancelFunc
+	c           *websocket.Conn
+	endPoint    string
+	channel     string
+	streams     []string
+	reconnect   bool
 	dataHandler func(msg []byte)
 
 	metric Metric
-	// dataMetricStart time.Time
-	// //killo bytes
-	// dataMetricReceived int64
-	c *websocket.Conn
 }
 
 func NewWsStream(endPoint string, channel string, handler func(msg []byte)) *WsStream {
@@ -74,13 +70,19 @@ func NewWsStream(endPoint string, channel string, handler func(msg []byte)) *WsS
 
 func (s *WsStream) handleError(err error) {
 	log.Printf("websocket error: %v\n", err)
-	for s.reconnect {
-		err := s.dial()
-		if err != nil {
-			log.Printf("websocket dial: %v\n", err)
-			continue
+	s.c = nil
+	if len(s.streams) > 0 {
+		for s.reconnect {
+			err := s.dial()
+			if err != nil {
+				log.Printf("websocket dial: %v\n", err)
+				continue
+			}
+			if err := s.Subscribe(s.streams); err != nil {
+				log.Printf("websocket subscribe after dial: %v\n", err)
+			}
+			break
 		}
-		break
 	}
 }
 

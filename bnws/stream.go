@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -47,17 +48,13 @@ func GetFutureWebsocketEndpoint() string {
 }
 
 type WsStream struct {
-	endPoint  string
-	streams   []string
-	reconnect bool
-	// cancelFunc  context.CancelFunc
+	sync.Mutex
+	c           *websocket.Conn
+	endPoint    string
+	streams     []string
+	reconnect   bool
 	dataHandler func(msg []byte)
-
-	metric Metric
-	// dataMetricStart time.Time
-	// //killo bytes
-	// dataMetricReceived int64
-	c *websocket.Conn
+	metric      Metric
 }
 
 func NewWsStream(endPoint string, handler func(msg []byte)) *WsStream {
@@ -71,13 +68,19 @@ func NewWsStream(endPoint string, handler func(msg []byte)) *WsStream {
 
 func (s *WsStream) handleError(err error) {
 	log.Printf("websocket error: %v\n", err)
-	for s.reconnect {
-		err := s.dial()
-		if err != nil {
-			log.Printf("websocket dial: %v\n", err)
-			continue
+	s.c = nil
+	if len(s.streams) > 0 {
+		for s.reconnect {
+			err := s.dial()
+			if err != nil {
+				log.Printf("websocket dial: %v\n", err)
+				continue
+			}
+			if err := s.Subscribe(s.streams); err != nil {
+				log.Printf("websocket subscribe after dial error:%v\n", err)
+			}
+			break
 		}
-		break
 	}
 }
 
@@ -149,6 +152,8 @@ func (s *WsStream) Stop() {
 }
 
 func (s *WsStream) Subscribe(streams []string) error {
+	s.Lock()
+	defer s.Unlock()
 	if err := s.Run(); err != nil {
 		return err
 	}
@@ -182,6 +187,8 @@ func (s *WsStream) Subscribe(streams []string) error {
 }
 
 func (s *WsStream) Unsubscribe(streams []string) error {
+	s.Lock()
+	defer s.Unlock()
 	var unsubscribes []string
 	var remain []string
 	for _, stream := range s.streams {
