@@ -29,8 +29,9 @@ const (
 )
 
 const (
-	SUBSCRIBE_ID   = 1996
-	UNSUBSCRIBE_ID = 1997
+	EVENT_SUBSCRIBE   = "subscribe"
+	EVENT_UNSUBSCRIBE = "unsubscribe"
+	EVENT_UPDATE      = "update"
 )
 
 var UseTestNet bool = false
@@ -48,22 +49,24 @@ func GetFutureWebsocketEndpoint() string {
 
 type WsStream struct {
 	sync.Mutex
-	c           *websocket.Conn
-	endPoint    string
-	channel     string
-	streams     []string
-	reconnect   bool
-	dataHandler func(msg []byte)
+	c            *websocket.Conn
+	endPoint     string
+	channel      string
+	streams      []string
+	reconnect    bool
+	dataHandler  func(msg []byte)
+	errorHandler func(msg string)
 
 	metric Metric
 }
 
-func NewWsStream(endPoint string, channel string, handler func(msg []byte)) *WsStream {
+func NewWsStream(endPoint string, channel string, dataHandler func(msg []byte), errorHandler func(msg string)) *WsStream {
 	stream := &WsStream{
-		endPoint:    endPoint,
-		channel:     channel,
-		dataHandler: handler,
-		reconnect:   true,
+		endPoint:     endPoint,
+		channel:      channel,
+		dataHandler:  dataHandler,
+		errorHandler: errorHandler,
+		reconnect:    true,
 	}
 	return stream
 }
@@ -166,15 +169,13 @@ func (s *WsStream) Subscribe(streams []string) error {
 	if len(subscribes) > 0 {
 		request, err := json.Marshal(struct {
 			Time    int64    `json:"time"`
-			Id      int64    `json:"id"`
 			Channel string   `json:"channel"`
 			Event   string   `json:"event"`
 			Payload []string `json:"payload"`
 		}{
 			Time:    time.Now().Unix(),
-			Id:      SUBSCRIBE_ID,
 			Channel: s.channel,
-			Event:   "subscribe",
+			Event:   EVENT_SUBSCRIBE,
 			Payload: streams,
 		})
 		if err != nil {
@@ -204,15 +205,13 @@ func (s *WsStream) Unsubscribe(streams []string) error {
 	if len(unsubscribes) > 0 {
 		request, err := json.Marshal(struct {
 			Time    int64    `json:"time"`
-			Id      int64    `json:"id"`
 			Channel string   `json:"channel"`
 			Event   string   `json:"event"`
 			Payload []string `json:"payload"`
 		}{
 			Time:    time.Now().Unix(),
-			Id:      UNSUBSCRIBE_ID,
 			Channel: s.channel,
-			Event:   "unsubscribe",
+			Event:   EVENT_UNSUBSCRIBE,
 			Payload: streams,
 		})
 		if err != nil {
@@ -263,14 +262,9 @@ func (s *WsStream) pump() {
 			continue
 		}
 		atomic.AddUint64(&s.metric.BytesReceived, uint64(totalN))
-		id, err := jsonparser.GetInt(message, "id")
-		if err == nil {
-			if id == SUBSCRIBE_ID || id == UNSUBSCRIBE_ID {
-				errorMsg, err := jsonparser.GetString(message, "message", "error", "message")
-				if err == nil && len(errorMsg) > 0 {
-					log.Printf("error: id=%d, msg=%s\n", id, errorMsg)
-				}
-			}
+		if errorMsg, err := jsonparser.GetString(message[:totalN], "error", "message"); err == nil {
+			s.errorHandler(errorMsg)
+			continue
 		}
 		s.dataHandler(message[:totalN])
 	}

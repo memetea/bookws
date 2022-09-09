@@ -1,6 +1,7 @@
 package gatews
 
 import (
+	"errors"
 	"time"
 	"unsafe"
 
@@ -62,6 +63,8 @@ func NewSpotBookTickStream(dataHandler func(tick *bookws.BookTick), errorHandler
 			return
 		}
 		dataHandler(tick)
+	}, func(msg string) {
+		errorHandler(errors.New(msg))
 	})
 	return ws
 }

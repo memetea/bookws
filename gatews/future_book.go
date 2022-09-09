@@ -1,24 +1,13 @@
 package gatews
 
 import (
+	"errors"
 	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/memetea/bookws"
 	"golang.org/x/exp/slices"
 )
-
-// type FutureBookTickStream struct {
-// 	*WsStream
-// }
-
-// func (ws *FutureBookTickStream) Subscribe(streams []string) {
-// 	ws.WsStream.Subscribe(ChannelFutureBookTicker, streams)
-// }
-
-// func (ws *FutureBookTickStream) UnSubscribe(streams []string) {
-// 	ws.WsStream.Unsubscribe(ChannelFutureBookTicker, streams)
-// }
 
 //按Symbol的最优挂单信息
 func NewFutureBookTickStream(dataHandler func(tick *bookws.BookTick), errorHandler func(err error)) *WsStream {
@@ -73,6 +62,8 @@ func NewFutureBookTickStream(dataHandler func(tick *bookws.BookTick), errorHandl
 			return
 		}
 		dataHandler(tick)
+	}, func(msg string) {
+		errorHandler(errors.New(msg))
 	})
 
 	return ws
