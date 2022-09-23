@@ -76,7 +76,10 @@ func (s *WsStream) handleError(err error) {
 				log.Printf("websocket dial: %v\n", err)
 				continue
 			}
-			if err := s.Subscribe(s.streams); err != nil {
+			subscribes := s.streams
+			s.streams = nil
+			if err := s.Subscribe(subscribes); err != nil {
+				s.streams = subscribes
 				log.Printf("websocket subscribe after dial error:%v\n", err)
 			}
 			break
