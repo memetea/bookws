@@ -45,13 +45,13 @@ func NewFutureBookTickStream(dataHandler func(tick *bookws.BookTick), errorHandl
 					}
 					tick.ServerTime = time.Unix(ms/1000, ms%1000*1e6)
 				case "b":
-					tick.BidPrice = unsafeString(value)
+					tick.BidPrice = value
 				case "B":
-					tick.BidQuantity = unsafeString(value)
+					tick.BidQuantity = value
 				case "a":
-					tick.AskPrice = unsafeString(value)
+					tick.AskPrice = value
 				case "A":
-					tick.AskQuantity = unsafeString(value)
+					tick.AskQuantity = value
 				}
 				return nil
 			}, "data")

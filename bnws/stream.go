@@ -96,7 +96,11 @@ func (s *WsStream) dial() error {
 	for i := 0; i < MaxRetryConn; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		s.c, _, err = websocket.Dial(ctx, url, nil)
+		//server_max_window_bits=15
+		// s.c, _, err = websocket.Dial(ctx, url, nil)
+		s.c, _, err = websocket.Dial(ctx, url, &websocket.DialOptions{
+			CompressionMode: websocket.CompressionDisabled,
+		})
 		if err != nil {
 			time.Sleep(time.Duration(i+1) * time.Second)
 			continue
@@ -112,6 +116,8 @@ func (s *WsStream) dial() error {
 }
 
 func (s *WsStream) Run() error {
+	s.Lock()
+	defer s.Unlock()
 	if s.c != nil {
 		return nil
 	}
@@ -155,11 +161,11 @@ func (s *WsStream) Stop() {
 }
 
 func (s *WsStream) Subscribe(streams []string) error {
-	s.Lock()
-	defer s.Unlock()
 	if err := s.Run(); err != nil {
 		return err
 	}
+	s.Lock()
+	defer s.Unlock()
 	var subscribes []string
 	for _, stream := range streams {
 		i := slices.Index(s.streams, stream)

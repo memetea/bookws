@@ -67,13 +67,13 @@ func NewSpotBookTickStream(dataHandler func(tick *bookws.BookTick), errorHandler
 					}
 					tick.Symbol = symbols[i]
 				case "b":
-					tick.BidPrice = unsafeString(value)
+					tick.BidPrice = value
 				case "B":
-					tick.BidQuantity = unsafeString(value)
+					tick.BidQuantity = value
 				case "a":
-					tick.AskPrice = unsafeString(value)
+					tick.AskPrice = value
 				case "A":
-					tick.AskQuantity = unsafeString(value)
+					tick.AskQuantity = value
 				}
 				return nil
 			}, "data")
